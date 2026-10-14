@@ -49,3 +49,7 @@ git status --short
 ```
 
 启动服务后访问 <http://127.0.0.1:48731/>，检查页面和视频功能。`/api/config` 含本机服务访问令牌；检查时只显示版本、就绪与健康字段，不上传完整响应。
+
+## 本机 Git 传输
+
+首次推送时，本机 Git 的默认 schannel 后端报告 TLS 握手失败；用 OpenSSL 读取远程正常。因此仅在该仓库的本地 Git 配置中设置 `http.sslBackend=openssl`，保留证书校验。该配置不随源码克隆；其他机器若遇到相同错误，可先验证 `git -c http.sslBackend=openssl ls-remote origin`，再决定是否使用相同的仓库级配置。
