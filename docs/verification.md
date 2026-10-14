@@ -52,4 +52,6 @@ git status --short
 
 ## 本机 Git 传输
 
-首次推送时，本机 Git 的默认 schannel 后端报告 TLS 握手失败；用 OpenSSL 读取远程正常。因此仅在该仓库的本地 Git 配置中设置 `http.sslBackend=openssl`，保留证书校验。该配置不随源码克隆；其他机器若遇到相同错误，可先验证 `git -c http.sslBackend=openssl ls-remote origin`，再决定是否使用相同的仓库级配置。
+首次推送时，本机 Git 的默认 schannel 后端报告 TLS 握手失败；单独切换 OpenSSL 后读取曾成功，但推送仍遇到 TLS EOF。随后采用 OpenSSL 加 HTTP/1.1 的组合，实际完成首次推送并读回远程提交；日志确认 GitHub 证书核验通过。具体网络兼容原因尚未确认。
+
+仅在本仓库的本地 Git 配置中设置 `http.sslBackend=openssl` 和 `http.version=HTTP/1.1`，保留证书校验。配置不随源码克隆；其他机器若遇到相同错误，可先用 `git -c http.sslBackend=openssl -c http.version=HTTP/1.1 ls-remote origin` 验证，再决定是否采用相同的仓库级设置。
