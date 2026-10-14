@@ -1,0 +1,63 @@
+# Local runtime, personal settings and installed dependencies
+work/
+node_modules/
+.codex/
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+!.env.template
+*.local
+*.log
+logs/
+cache/
+.cache/
+tmp/
+temp/
+*.tmp
+*.pid
+auth.json
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Instructions are kept locally and never uploaded (case insensitive).
+[Aa][Gg][Ee][Nn][Tt].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt].[Oo][Vv][Ee][Rr][Rr][Ii][Dd][Ee].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss].[Oo][Vv][Ee][Rr][Rr][Ii][Dd][Ee].[Mm][Dd]
+
+# Archives, rollback copies and generated results
+backup/
+backups/
+archives/
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+chrome-profile/
+*.bak
+*.orig
+*.zip
+*.7z
+*.rar
+*.tar
+*.tgz
+*.gz
+
+# User videos belong to the browser library, not source control.
+*.mp4
+*.webm
+*.mkv
+*.mov
+*.avi
+*.m4v
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+desktop.ini

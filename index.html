@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>山茶花的学习播放器</title>
+  <link rel="stylesheet" href="/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/vendor/katex/katex.min.js"></script>
+  <script defer src="/vendor/markdown-it.min.js"></script>
+  <script defer src="/vendor/dexie/dexie.min.js"></script>
+  <script defer src="/library.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+<aside id="project-sidebar" class="project-sidebar" aria-label="视频项目和对话">
+  <div class="sidebar-heading"><h2>视频项目</h2><button id="sidebar-close" class="sidebar-icon" type="button" aria-label="收起侧栏" title="收起侧栏"><svg class="stroke" viewBox="0 0 24 24"><path d="M4 4h16v16H4zm5 0v16"/></svg></button></div>
+  <div class="sidebar-actions"><button id="sidebar-new-chat" class="sidebar-action" type="button" disabled><span aria-hidden="true">＋</span>新对话</button><button id="sidebar-add-video" class="sidebar-action secondary" type="button" disabled><svg class="stroke" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v11H3zM3 7V4h7l2 3"/></svg>添加视频项目</button></div>
+  <label class="sidebar-search"><svg class="stroke" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input id="history-search" type="search" placeholder="搜索视频或对话" aria-label="搜索视频或对话" autocomplete="off"></label>
+  <div class="sidebar-list-heading"><span>项目与对话</span><span id="library-count"></span></div>
+  <div class="sidebar-history"><p id="library-empty" class="library-empty">添加一个课程视频，作为你的学习项目。</p><nav id="library-list" class="library-list" aria-label="视频项目及对话历史"></nav></div>
+  <div class="sidebar-footer"><p id="library-storage" class="library-storage">视频、对话和进度保存在当前浏览器。</p></div>
+</aside>
+<button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="关闭侧栏" tabindex="-1" hidden></button>
+<div class="app" id="app">
+  <header class="topbar">
+    <button id="sidebar-toggle" class="icon-button" type="button" aria-label="展开或收起项目侧栏" title="项目与对话" aria-controls="project-sidebar" aria-expanded="false"><svg class="stroke" viewBox="0 0 24 24"><path d="M4 4h16v16H4zm5 0v16"/></svg></button>
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 5h9c4 0 5 2 5 5v17c-2-3-5-4-9-4H5zM27 5h-4v18h4z"/></svg><div><h1>学习播放器</h1><p>看到不懂的地方，就在这里问。</p></div></div>
+    <div class="connection"><span id="connection-dot" class="dot"></span><button id="reconnect" title="重新检查 Codex 登录">正在连接 Codex</button></div>
+    <button class="subtle" id="help-open">快捷键</button>
+  </header>
+  <main class="workspace">
+    <section class="player-column" aria-label="视频播放器">
+      <div class="video-meta"><div><span class="label">正在学习</span><h2 id="video-name">先放进一段课程视频</h2><p id="save-status" class="save-status" role="status">视频和进度会保存在当前浏览器</p></div><button id="open-file" class="outline" disabled>添加视频</button><input type="file" id="file-input" multiple disabled accept="video/*,.mkv,.webm,.mp4,.mov,.m4v,.avi" hidden></div>
+      <p id="import-status" class="import-status" role="status" hidden></p>
+      <div id="video-shell" class="video-shell">
+        <video id="video" playsinline preload="metadata" aria-label="课程视频"></video>
+        <div id="drop-zone" class="drop-zone">
+          <svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="13" width="52" height="46" rx="8"/><path d="m29 26 19 10-19 10z"/></svg>
+          <h3>把课程视频拖到这里</h3><p>或者点击“添加视频”选择本地文件</p><span>本地保存，下次直接续播</span>
+        </div>
+        <div id="drop-overlay" class="drop-overlay" hidden>松开，开始学习</div>
+        <div id="video-toast" class="video-toast" role="status" hidden></div>
+        <button id="fullscreen-question" class="fullscreen-question">暂停提问</button>
+      </div>
+      <div class="transport">
+        <div class="timeline"><span id="current-time">00:00</span><input id="timeline" type="range" min="0" max="1000" step="1" value="0" aria-label="播放进度" disabled><span id="duration">00:00</span></div>
+        <div class="controls">
+          <div class="play-controls"><button id="back" class="icon-button" title="快退（左方向键）" aria-label="快退" disabled><svg viewBox="0 0 24 24"><path d="m11 5-8 7 8 7zm10 0-8 7 8 7z"/></svg></button><button id="play" class="play-button" title="播放或暂停（空格）" aria-label="播放" disabled><svg viewBox="0 0 24 24"><path d="m7 4 14 8-14 8z"/></svg></button><button id="forward" class="icon-button" title="快进（右方向键）" aria-label="快进" disabled><svg viewBox="0 0 24 24"><path d="m3 5 8 7-8 7zm10 0 8 7-8 7z"/></svg></button></div>
+          <div class="rate-control">
+            <button id="rate-label" class="rate-label" title="点击调节倍速" aria-label="当前倍速，点击打开调速滑条" aria-expanded="false" aria-controls="rate-popover"></button>
+            <div id="rate-popover" class="rate-popover" role="group" aria-labelledby="rate-title" hidden>
+              <div class="rate-popover-header"><span id="rate-title">播放倍速</span><button id="rate-reset" class="subtle" type="button">恢复正常</button></div>
+              <input id="rate" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="播放倍速">
+              <div class="rate-limits"><span data-math="0.25\times"></span><span data-math="4\times"></span></div>
+            </div>
+          </div>
+          <div class="right-controls"><button id="mute" class="icon-button" title="静音（M）" aria-label="静音"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="stroke" d="M16 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14"/></svg></button><input id="volume" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="音量"><button id="fullscreen" class="icon-button" title="全屏（F）" aria-label="全屏"><svg class="stroke" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div>
+        </div>
+      </div>
+      <div class="below-player"><p id="player-hint">拖入视频后，可以按空格播放，按 Q 暂停并提问。</p><button id="pause-ask" class="primary">暂停，问 Codex <kbd>Q</kbd></button></div>
+      <section class="notes" aria-label="课堂补充内容"><label for="lesson-context">老师刚才说了什么？<span>可选，仅用于当前对话</span></label><textarea id="lesson-context" rows="2" placeholder="例如：老师说这个条件保证收敛，但我没听懂为什么。"></textarea></section>
+      <details class="local-note"><summary>视频与提问怎么处理？</summary><p>添加的视频会保存在当前浏览器的本地视频库中，不会上传整个视频。点击提问后，问题、视频文件名、播放位置、补充内容和勾选的当前画面会交给已登录的 Codex。播放器不会自动转录声音。问答使用你的 Codex 额度，与此聊天分开显示。</p><p>视频、播放位置、倍速、草稿和文字问答保存在此浏览器本地。重新打开同一地址后，播放器会恢复上次的视频并停在上次位置；在左侧选择视频项目，再打开其中的对话。每段对话分别保存问答、草稿和课堂补充，提问只参考当前对话。浏览器存储有空间限制，清除网站数据会丢失记录。提问截图暂存在本机播放器的 work/runtime 目录中，请求结束后清理。</p></details>
+    </section>
+    <aside class="chat-column" aria-label="向 Codex 提问">
+      <div class="chat-header"><div><h2 id="chat-title">新对话</h2><p id="chat-project">选择视频项目，开始一段对话</p></div><button id="new-chat" class="subtle" title="在当前视频项目中开启独立对话" disabled>＋ 新对话</button></div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+      <div class="composer-wrap">
+        <div id="frame-preview" class="frame-preview" hidden><img id="frame-image" alt="准备附上的当前视频画面"><div><span id="frame-time"></span><button id="retake" class="subtle">更新画面</button></div></div>
+        <div class="question-options"><label><input id="attach-frame" type="checkbox" checked>附上当前画面</label><span id="ask-position">未加载视频</span></div>
+        <form id="question-form"><label for="question" class="sr-only">想问的知识点</label><textarea id="question" rows="3" placeholder="这里为什么可以这样推导？" maxlength="12000"></textarea><div class="composer-actions"><span id="ask-status" role="status">按 Ctrl + Enter 提问</span><button id="cancel" class="outline" type="button" hidden>停止</button><button id="ask" class="primary" type="submit" disabled>问 Codex</button></div></form>
+      </div>
+    </aside>
+  </main>
+  <dialog id="help"><form method="dialog"><div class="dialog-header"><h2>用键盘继续学习</h2><button class="subtle">关闭</button></div><dl><dt><kbd>Space</kbd></dt><dd>播放 / 暂停</dd><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>快退 / 快进<span data-math="10\,\mathrm{s}"></span></dd><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>降低 / 提高倍速</dd><dt><kbd>F</kbd></dt><dd>全屏 / 退出全屏</dd><dt><kbd>M</kbd></dt><dd>静音 / 取消静音</dd><dt><kbd>Q</kbd></dt><dd>暂停并把当前画面带入提问</dd><dt><kbd>Ctrl</kbd> + <kbd>Enter</kbd></dt><dd>发送问题</dd></dl><p>在输入框里打字时，播放器快捷键不会干扰输入。</p></form></dialog>
+  <div id="conversation-menu" class="conversation-menu" role="menu" aria-label="管理对话" hidden><button id="rename-conversation" type="button" role="menuitem">重命名</button><button id="delete-conversation" class="danger" type="button" role="menuitem">删除对话</button></div>
+  <dialog id="rename-dialog"><form id="rename-form" method="dialog"><div class="dialog-header"><h2>重命名对话</h2></div><label class="dialog-input-label" for="conversation-name-input">对话名称</label><input id="conversation-name-input" class="dialog-input" maxlength="80" autocomplete="off"><p id="rename-error" class="dialog-error" role="alert"></p><div class="dialog-actions"><button class="outline" value="cancel">取消</button><button class="primary" value="save">保存</button></div></form></dialog>
+  <dialog id="delete-dialog"><form id="delete-form" method="dialog"><div class="dialog-header"><h2>删除对话？</h2></div><p class="delete-chat-title" id="delete-chat-name"></p><p class="dialog-description">这段对话会从历史列表移除，不再用于后续提问。视频和播放进度继续保留；删除后可以立即撤销。</p><p id="delete-error" class="dialog-error" role="alert"></p><div class="dialog-actions"><button class="outline" value="cancel" autofocus>取消</button><button id="confirm-delete-conversation" class="primary danger-button" value="delete">删除对话</button></div></form></dialog>
+  <div id="undo-delete" class="undo-delete" role="status" hidden><span>对话已删除</span><button id="undo-delete-button" type="button">撤销</button></div>
+  <div id="notice" class="notice" role="alert" hidden></div>
+</div>
+</body>
+</html>

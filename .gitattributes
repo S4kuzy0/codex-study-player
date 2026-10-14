@@ -1,0 +1,13 @@
+* text=auto eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.ttf binary
+*.woff binary
+*.woff2 binary
+# Keep upstream distributions intact; whitespace checks apply to our sources.
+vendor/** -whitespace
