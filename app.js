@@ -7,6 +7,7 @@ let accessToken = '', connected = false, busy = false, controller = null, notice
 let frame = null, dragDepth = 0, lastSave = 0, restoreTime = 0, restoring = false, detectingDuration = false, durationTimer, storageWarningShown = false;
 let currentRecord = null, libraryEntries = [], importing = false, libraryBooting = true, openedAt = 0, draftSaveTimer;
 let currentConversation = null, conversationSwitching = false, conversationMenuTarget = null, dialogTarget = null, undoDeletion = null, undoTimer;
+let showArchivedVideos = false, projectMenuTarget = null, deleteVideoTarget = null;
 const projectStates = new Map(), expandedProjects = new Set();
 const markdown = window.markdownit({ html: false, linkify: true, breaks: true });
 
@@ -281,7 +282,7 @@ function updateLibraryControls() {
   $('new-chat').disabled = disabled || noProject; $('sidebar-new-chat').disabled = disabled || noProject;
   $('question').disabled = busy || libraryBooting || conversationSwitching;
   $('lesson-context').disabled = busy || libraryBooting || conversationSwitching;
-  document.querySelectorAll('.project-open,.project-new-chat,.conversation-open,.conversation-more').forEach(el => { el.disabled = disabled; });
+  document.querySelectorAll('.project-open,.project-new-chat,.project-more,.conversation-open,.conversation-more').forEach(el => { el.disabled = disabled; });
   $('ask').disabled = disabled || !connected;
 }
 function fileSizeHTML(size) {
@@ -392,13 +393,18 @@ function renderLibrary() {
   if (!$('library-list')) return;
   const focusedChat = document.activeElement?.closest('.conversation-open')?.dataset.chatId;
   $('library-list').replaceChildren();
-  $('library-count').innerHTML = mathHTML(libraryEntries.length) + ' 个视频项目';
+  const entries = libraryEntries.filter(entry => Boolean(entry.record.archivedAt) === showArchivedVideos);
+  const archivedCount = libraryEntries.filter(entry => entry.record.archivedAt).length;
+  $('library-count').innerHTML = mathHTML(entries.length) + ' 个视频项目';
+  $('library-active').setAttribute('aria-pressed', String(!showArchivedVideos));
+  $('library-archived').setAttribute('aria-pressed', String(showArchivedVideos));
+  $('archived-count').textContent = archivedCount ? '（' + archivedCount + '）' : '';
   const query = $('history-search').value.trim().toLocaleLowerCase();
-  const groups = libraryEntries.slice().sort(compareLibraryEntries).map(entry =>
+  const groups = entries.slice().sort(compareLibraryEntries).map(entry =>
     ({ projectId: entry.record.id, name: entry.record.name, record: entry.record, state: projectStates.get(entry.record.id) || entry.state }));
-  if (file && !currentRecord) groups.unshift({ projectId: videoId(), name: file.name, record: null, state: projectStates.get(videoId()) });
+  if (!showArchivedVideos && file && !currentRecord) groups.unshift({ projectId: videoId(), name: file.name, record: null, state: projectStates.get(videoId()) });
   const general = projectStates.get('study-player:general');
-  if (projectChats(general).length) groups.push({ projectId: 'study-player:general', name: '未关联视频', record: null, state: general });
+  if (!showArchivedVideos && projectChats(general).length) groups.push({ projectId: 'study-player:general', name: '未关联视频', record: null, state: general });
   let shown = 0;
   for (const group of groups) {
     const allChats = projectChats(group.state);
@@ -416,7 +422,7 @@ function renderLibrary() {
     const open = document.createElement('button'); open.type = 'button'; open.className = 'project-open library-item';
     open.dataset.videoId = group.projectId; open.title = group.name; open.disabled = busy || importing || conversationSwitching;
     const name = document.createElement('strong'); name.textContent = group.name;
-    const position = document.createElement('span'); position.textContent = group.record ? '上次看到 ' + clock(group.state?.time || 0) : group.projectId === 'study-player:general' ? '独立的未关联对话' : '视频未保存';
+    const position = document.createElement('span'); position.textContent = group.record ? (group.record.archivedAt ? '已归档，上次看到 ' : '上次看到 ') + clock(group.state?.time || 0) : group.projectId === 'study-player:general' ? '独立的未关联对话' : '视频未保存';
     open.append(name, position);
     open.addEventListener('click', async () => {
       expandedProjects.add(group.projectId);
@@ -433,7 +439,13 @@ function renderLibrary() {
       }
       await createNewConversation(); closeSidebarOnMobile();
     });
-    row.append(toggle, open, add); section.append(row);
+    row.append(toggle, open, add);
+    if (group.record) {
+      const more = iconButton('管理视频 ' + group.name, '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>');
+      more.classList.add('project-more'); more.disabled = busy || importing || conversationSwitching;
+      more.addEventListener('click', event => openProjectMenu(group.record, event.currentTarget)); row.append(more);
+    }
+    section.append(row);
     const children = document.createElement('div'); children.className = 'project-conversations'; children.hidden = !expanded;
     for (const chat of chats) {
       const chatRow = document.createElement('div'); chatRow.className = 'conversation-row';
@@ -456,7 +468,7 @@ function renderLibrary() {
     section.append(children); $('library-list').append(section);
   }
   $('library-empty').hidden = shown > 0;
-  $('library-empty').textContent = query ? '没有找到匹配的视频或对话。' : '添加一个课程视频，作为你的学习项目。';
+  $('library-empty').textContent = query ? '没有找到匹配的视频或对话。' : showArchivedVideos ? '还没有归档视频。归档后可以在这里恢复。' : '添加一个课程视频，作为你的学习项目。';
   if (focusedChat) document.querySelector('.conversation-open[data-chat-id="' + CSS.escape(focusedChat) + '"]')?.focus({ preventScroll: true });
   updateLibraryControls(); updateConversationHeading();
 }
@@ -503,8 +515,54 @@ function setSidebar(open) {
 }
 function closeSidebarOnMobile() { if (window.innerWidth <= 1150) setSidebar(false); }
 function closeConversationMenu() { $('conversation-menu').hidden = true; conversationMenuTarget = null; }
+function closeProjectMenu() { $('project-menu').hidden = true; projectMenuTarget = null; }
+function openProjectMenu(record, anchor) {
+  if (busy || importing || conversationSwitching) return;
+  closeConversationMenu(); projectMenuTarget = record;
+  const menu = $('project-menu'), rect = anchor.getBoundingClientRect();
+  $('archive-video').textContent = record.archivedAt ? '恢复到正在学习' : '归档视频';
+  menu.hidden = false; menu.style.left = Math.max(8, Math.min(rect.right - 168, innerWidth - 176)) + 'px';
+  menu.style.top = Math.max(8, Math.min(rect.bottom + 4, innerHeight - 106)) + 'px'; $('archive-video').focus();
+}
+async function clearCurrentVideoProject() {
+  clearTimeout(draftSaveTimer); clearTimeout(durationTimer); detectingDuration = false;
+  video.pause(); if (objectURL) URL.revokeObjectURL(objectURL);
+  objectURL = null; file = null; currentRecord = null; key = 'study-player:general';
+  loaded = false; restoreTime = 0; openedAt = 0; frame = null;
+  video.removeAttribute('src'); video.load(); setEnabled(); shell.classList.remove('loaded'); $('drop-zone').hidden = false;
+  $('video-name').textContent = '先放进一段课程视频'; $('video-name').title = '';
+  $('player-hint').textContent = '拖入视频后，可以按空格播放，按 Q 暂停并提问。';
+  setSaveStatus('视频和进度会保存在当前浏览器');
+  const state = await ensureProjectState(key, storageRead(key) || {});
+  applyConversation(state); updateTransport();
+}
+async function manageVideoProject(record, action) {
+  if (busy || importing || conversationSwitching || libraryBooting) return false;
+  conversationSwitching = true; updateLibraryControls();
+  try {
+    await save(); await studyLibrary.flushed();
+    const current = currentRecord?.id === record.id;
+    restoring = true;
+    if (current) video.pause();
+    let cleanupComplete = true;
+    if (action === 'delete') {
+      const result = await studyLibrary.deleteVideo(record.id); cleanupComplete = result.cleanupComplete;
+      result.ids.forEach(id => { projectStates.delete(id); expandedProjects.delete(id); });
+      if (undoDeletion && result.ids.includes(undoDeletion.projectId)) {
+        clearTimeout(undoTimer); undoDeletion = null; $('undo-delete').hidden = true;
+      }
+    } else await studyLibrary.setVideoArchived(record.id, action === 'archive');
+    if (current && action !== 'restore') await clearCurrentVideoProject();
+    if (action === 'restore') { showArchivedVideos = false; expandedProjects.add(record.id); }
+    await refreshLibrary();
+    notice(action === 'delete' ? cleanupComplete ? '视频副本和关联记录已删除，原视频文件仍保留。' : '视频已删除，但旧关闭快照未能清理；请检查浏览器存储权限。' :
+      action === 'archive' ? '视频已归档，可在“已归档”中恢复。' : '视频已恢复到“正在学习”。');
+    return true;
+  } finally { restoring = false; conversationSwitching = false; updateLibraryControls(); }
+}
 function openConversationMenu(projectId, chat, anchor) {
   if (busy || importing || conversationSwitching) return;
+  closeProjectMenu();
   conversationMenuTarget = { projectId, chat }; const menu = $('conversation-menu'), rect = anchor.getBoundingClientRect();
   menu.hidden = false; menu.style.left = Math.max(8, Math.min(rect.right - 168, innerWidth - 176)) + 'px';
   menu.style.top = Math.min(rect.bottom + 4, innerHeight - 106) + 'px'; $('rename-conversation').focus();
@@ -528,6 +586,32 @@ $('sidebar-backdrop').addEventListener('click', () => setSidebar(false));
 $('sidebar-new-chat').addEventListener('click', createNewConversation);
 $('sidebar-add-video').addEventListener('click', () => $('file-input').click());
 $('history-search').addEventListener('input', renderLibrary);
+for (const [id, archived] of [['library-active', false], ['library-archived', true]]) {
+  $(id).addEventListener('click', () => { showArchivedVideos = archived; closeProjectMenu(); closeConversationMenu(); renderLibrary(); });
+}
+$('archive-video').addEventListener('click', async () => {
+  if (!projectMenuTarget) return;
+  const record = projectMenuTarget; closeProjectMenu();
+  try { await manageVideoProject(record, record.archivedAt ? 'restore' : 'archive'); }
+  catch (error) { notice(error.message || '未能修改视频归档状态。'); }
+});
+$('delete-video').addEventListener('click', () => {
+  if (!projectMenuTarget) return;
+  deleteVideoTarget = projectMenuTarget; closeProjectMenu();
+  $('delete-video-name').textContent = deleteVideoTarget.name;
+  const chats = projectChats(projectStates.get(deleteVideoTarget.id));
+  $('delete-video-details').textContent = '将清除这个视频的浏览器副本、播放进度、倍速，以及所有关联对话、草稿、课堂补充和恢复快照。当前有 ' + chats.length + ' 段对话。';
+  $('delete-video-error').textContent = ''; $('delete-video-dialog').showModal();
+});
+$('delete-video-form').addEventListener('submit', async event => {
+  if (event.submitter?.value === 'cancel') { deleteVideoTarget = null; return; }
+  event.preventDefault(); if (!deleteVideoTarget || conversationSwitching) return;
+  $('confirm-delete-video').disabled = true;
+  try {
+    if (await manageVideoProject(deleteVideoTarget, 'delete')) { $('delete-video-dialog').close(); deleteVideoTarget = null; }
+  } catch (error) { $('delete-video-error').textContent = error.message || '未能删除视频，请重试。'; }
+  finally { $('confirm-delete-video').disabled = false; }
+});
 $('rename-conversation').addEventListener('click', () => {
   if (!conversationMenuTarget) return;
   dialogTarget = conversationMenuTarget; closeConversationMenu();
@@ -567,7 +651,13 @@ $('undo-delete-button').addEventListener('click', async () => {
   } catch (error) { notice(error.message || '对话未能恢复。'); }
 });
 document.addEventListener('pointerdown', event => { if (!event.target.closest('#conversation-menu,.conversation-more')) closeConversationMenu(); });
+document.addEventListener('pointerdown', event => { if (!event.target.closest('#project-menu,.project-more')) closeProjectMenu(); });
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('project-menu').hidden) { event.preventDefault(); closeProjectMenu(); return; }
+  if (!$('project-menu').hidden && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
+    event.preventDefault(); const buttons = Array.from($('project-menu').querySelectorAll('button'));
+    const index = buttons.indexOf(document.activeElement); buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus(); return;
+  }
   if (event.key === 'Escape' && !$('conversation-menu').hidden) { event.preventDefault(); closeConversationMenu(); return; }
   if (event.key === 'Escape' && innerWidth <= 1150 && document.body.classList.contains('sidebar-open') && !document.querySelector('dialog[open]')) { setSidebar(false); $('sidebar-toggle').focus(); }
   if (!$('conversation-menu').hidden && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
@@ -580,7 +670,7 @@ window.addEventListener('resize', () => {
   const compact = innerWidth <= 1150;
   if (compact !== compactSidebar) { compactSidebar = compact; setSidebar(!compact); }
   else $('sidebar-backdrop').hidden = !document.body.classList.contains('sidebar-open') || !compact;
-  closeConversationMenu();
+  closeConversationMenu(); closeProjectMenu();
 });
 setSidebar(innerWidth > 1150);
 
@@ -604,7 +694,7 @@ async function addVideos(selections) {
   const candidates = selections.filter(selected => selected.type.startsWith('video/') ||
     /\.(mp4|webm|mkv|mov|m4v|avi|ogg|ogv)$/i.test(selected.name));
   if (!candidates.length) { notice('请选择视频文件。'); return; }
-  importing = true; updateLibraryControls(); $('import-status').hidden = false;
+  importing = true; showArchivedVideos = false; updateLibraryControls(); $('import-status').hidden = false;
   let first = true, failures = 0, added = 0, duplicates = 0;
   studyLibrary.requestPersistence().then(persistent => {
     if (persistent) $('library-storage').textContent = '浏览器已允许持久保存。清除网站数据仍会删除视频和记录。';
@@ -647,7 +737,8 @@ async function initializeLibrary() {
     $('library-empty').textContent = '浏览器存储不可用。视频仍可播放，请保留原文件。';
     notice('浏览器存储不可用，暂时无法保存视频。');
   } finally { libraryBooting = false; updateLibraryControls(); }
-  if (libraryEntries.length) await openSavedVideo(libraryEntries.slice().sort(compareLibraryEntries)[0].record);
+  const active = libraryEntries.filter(entry => !entry.record.archivedAt).sort(compareLibraryEntries);
+  if (active.length) await openSavedVideo(active[0].record);
 }
 
 $('open-file').addEventListener('click', () => $('file-input').click());
@@ -694,7 +785,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('rate-popover').hidden) { e.preventDefault(); closeRatePopover(true); return; }
   const editable = e.target.closest('input,textarea,select,[contenteditable="true"]');
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && e.target === $('question')) { e.preventDefault(); sendQuestion(); return; }
-  if (editable || document.querySelector('dialog[open]') || e.target.closest('#project-sidebar,#conversation-menu') || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (editable || document.querySelector('dialog[open]') || e.target.closest('#project-sidebar,#conversation-menu,#project-menu') || e.ctrlKey || e.altKey || e.metaKey) return;
   if (e.code === 'Space' && !e.target.closest('button')) { e.preventDefault(); togglePlay(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(-10); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); seek(10); }

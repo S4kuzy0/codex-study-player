@@ -74,3 +74,8 @@ body.sidebar-open .project-sidebar{transform:translateX(0)}
 @media(max-width:900px){.workspace{display:flex;flex-direction:column;gap:24px}.player-column,.chat-column{width:100%}.chat-column{height:650px;min-height:500px}}
 @media(max-width:440px){.app{padding-left:12px;padding-right:12px}.topbar{height:74px;gap:7px}.topbar .brand{gap:7px}.topbar .brand h1{font-size:15px}.topbar .brand>svg{display:none}.topbar .connection button{max-width:95px}.topbar #help-open{padding:5px;font-size:10px}.topbar #sidebar-toggle{width:26px;padding:2px}.chat-column{height:650px}.chat-header{padding:16px}#chat-title{font-size:15px}.project-sidebar{width:min(285px,86vw)}}
 @media(prefers-reduced-motion:reduce){.project-expand svg{transition:none}}
+.library-filters{display:flex;gap:3px;padding:3px;background:#dfe8f4;border-radius:7px;margin:4px 3px 7px}
+.library-filters button{flex:1;background:transparent;color:var(--muted);padding:8px 3px;font-size:11px;white-space:nowrap}
+.library-filters button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px #17345a12}
+.project-more{width:22px;flex:none;opacity:.55}.project-row:hover .project-more,.project-more:focus-visible{opacity:1}
+#delete-video-dialog{max-width:min(480px,calc(100vw - 32px))}#delete-video-dialog .dialog-actions{flex-wrap:wrap}

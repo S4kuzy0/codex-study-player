@@ -9,6 +9,7 @@ window.studyLibrary = (() => {
   const cache = new Map();
   const journalPrefix = 'study-player:library-checkpoint:';
   const lastCheckpoint = new Map();
+  const deletedVideos = new Set();
   let sequence = Date.now(), queue = Promise.resolve(), available = false;
   function stamp() { sequence = Math.max(Date.now(), sequence + 1); return sequence; }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -58,6 +59,9 @@ window.studyLibrary = (() => {
   async function mutateProjectNow(projectId, producer) {
     return db.transaction('rw', db.events, async () => {
       const current = await getState(projectId, true);
+      if (current.videoDeletedAt) {
+        const error = new Error('这个视频项目已被删除，请重新添加视频。'); error.code = 'VIDEO_DELETED'; throw error;
+      }
       const fields = producer(clone(current)) || {};
       const change = {};
       for (const [key, value] of Object.entries(fields)) {
@@ -162,6 +166,11 @@ window.studyLibrary = (() => {
       if (await db.events.get(event.id)) continue;
       await db.transaction('rw', db.events, async () => {
         const current = await getState(event.videoId, true), snapshot = event.conversationSnapshot;
+        if (current.videoDeletedAt) {
+          deletedVideos.add(event.videoId);
+          localStorage.removeItem(journalPrefix + event.id);
+          return;
+        }
         const change = { ...event.change };
         if (snapshot && snapshot.projectId === event.videoId && typeof snapshot.id === 'string' &&
             !Object.hasOwn(current.deletedConversationIds || {}, snapshot.id)) {
@@ -200,7 +209,7 @@ window.studyLibrary = (() => {
     await ready;
     const signature = await fingerprint(file);
     const previous = await db.videos.where('fingerprint').equals(signature).first();
-    if (previous) return { record: previous, added: false };
+    if (previous) return { record: previous.archivedAt ? await setVideoArchived(previous.id, false) : previous, added: false };
     const estimate = await navigator.storage?.estimate?.().catch(() => null);
     if (estimate?.quota && file.size > Math.max(0, estimate.quota - (estimate.usage || 0))) {
       const error = new Error('浏览器剩余存储空间不足，视频没有保存；可以继续观看，关闭后需重新选择文件。');
@@ -237,25 +246,57 @@ window.studyLibrary = (() => {
     const records = await db.videos.toArray();
     return Promise.all(records.map(async record => ({ record, state: await getState(record.id, true) })));
   }
-  function saveState(videoId, value) {
-    const snapshot = clone(value);
+  function setVideoArchived(id, archived) {
     return ordered(async () => {
       await ready;
-      const current = await getState(videoId);
-      const change = {};
-      for (const [key, next] of Object.entries(snapshot)) {
-        if (JSON.stringify(current[key]) !== JSON.stringify(next)) change[key] = next;
-      }
-      if (!Object.keys(change).length) return current;
-      const event = { id: crypto.randomUUID(), videoId, stamp: stamp(), change };
-      // Append changes so previous progress and question records are retained.
-      await db.events.add(event);
-      const state = { ...current, ...change, updatedAt: event.stamp };
-      cache.set(videoId, state);
-      return clone(state);
+      return db.transaction('rw', db.videos, async () => {
+        const record = await db.videos.get(id);
+        if (!record) throw new Error('这个视频已被删除，请刷新列表。');
+        record.archivedAt = archived ? stamp() : null;
+        await db.videos.put(record);
+        return record;
+      });
     });
   }
+  function removeVideoCheckpoints(ids) {
+    const targets = new Set(ids);
+    for (const key of Object.keys(localStorage)) {
+      if (targets.has(key)) { localStorage.removeItem(key); continue; }
+      if (!key.startsWith(journalPrefix)) continue;
+      try {
+        const event = JSON.parse(localStorage.getItem(key));
+        if (targets.has(event?.videoId) || targets.has(event?.conversationSnapshot?.projectId)) localStorage.removeItem(key);
+      } catch (error) { if (error.name !== 'SyntaxError') throw error; }
+    }
+  }
+  function deleteVideo(id) {
+    return ordered(async () => {
+      await ready;
+      const ids = await db.transaction('rw', db.videos, db.files, db.events, async () => {
+        const record = await db.videos.get(id);
+        if (!record) throw new Error('这个视频已被删除，请刷新列表。');
+        const targets = [...new Set([id, record.legacyKey].filter(Boolean))];
+        await db.files.delete(id);
+        await db.videos.delete(id);
+        await db.events.where('videoId').anyOf(targets).delete();
+        for (const target of targets) {
+          await db.events.add({ id: crypto.randomUUID(), videoId: target, stamp: stamp(),
+            change: { videoDeletedAt: stamp(), conversationVersion: 1 } });
+        }
+        return targets;
+      });
+      for (const target of ids) { deletedVideos.add(target); cache.delete(target); lastCheckpoint.delete(target); }
+      let cleanupComplete = true;
+      try { removeVideoCheckpoints(ids); } catch { cleanupComplete = false; }
+      return { ids, cleanupComplete };
+    });
+  }
+  function saveState(videoId, value) {
+    const snapshot = clone(value);
+    return mutateProject(videoId, () => snapshot);
+  }
   function checkpoint(videoId, value, conversation = null) {
+    if (deletedVideos.has(videoId)) return;
     const signature = JSON.stringify([value, conversation]);
     if (lastCheckpoint.get(videoId) === signature) return;
     const event = { id: crypto.randomUUID(), videoId, stamp: stamp(), change: clone(value) };
@@ -268,6 +309,7 @@ window.studyLibrary = (() => {
     try { return await navigator.storage?.persist?.() || false; } catch { return false; }
   }
   return { ready, addVideo, getFile, getState, list, saveState, checkpoint, requestPersistence,
+    setVideoArchived, deleteVideo,
     visibleConversations, makeConversation, ensureConversations, createConversation, selectConversation,
     saveConversation, renameConversation, deleteConversation, restoreConversation,
     flushed: () => queue, get available() { return available; } };
