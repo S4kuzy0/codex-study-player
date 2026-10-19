@@ -1,6 +1,6 @@
 # Codex Study Player
 
-本地课程视频播放器，当前版本 **1.4.0**。支持拖入视频、倍速滑条、快捷快进、全屏，以及通过本机已登录的 Codex CLI 在播放器旁提问。
+本地课程视频播放器，当前版本 **1.4.1**。支持拖入视频、倍速滑条、快捷快进、全屏，以及通过本机已登录的 Codex CLI 在播放器旁提问。
 
 版本仓库：[S4kuzy0/codex-study-player](https://github.com/S4kuzy0/codex-study-player)，使用 `main` 分支。原创代码采用 [MIT](LICENSE)。
 

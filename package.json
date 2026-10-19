@@ -1,6 +1,6 @@
 {
   "name": "codex-study-player",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "license": "MIT",
   "description": "Local video study player with per-video conversations and Codex CLI integration",

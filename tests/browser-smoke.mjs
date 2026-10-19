@@ -18,7 +18,7 @@ page.on('pageerror', error => errors.push(error.message));
 await page.route('**/api/**', async route => {
   const pathname = new URL(route.request().url()).pathname;
   if (pathname === '/api/config' || pathname === '/api/reconnect') {
-    await route.fulfill({ json: { app: 'study-player', version: '1.4.0', storage: 'dexie', healthy: true,
+    await route.fulfill({ json: { app: 'study-player', version: '1.4.1', storage: 'dexie', healthy: true,
       ready: true, token: 'isolated-demo-token', message: '离线示例连接' } });
   } else if (pathname === '/api/ask') {
     requests.push(route.request().postDataJSON());
@@ -76,10 +76,13 @@ try {
   await page.locator('.project-more').first().click();
   await page.locator('#delete-video').click();
   await page.locator('#confirm-delete-video').click();
+  await page.waitForFunction(() => !document.querySelector('#delete-video-dialog').open);
+  await page.evaluate(() => window.studyLibrary.flushed());
   await page.waitForFunction(async () => (await window.studyLibrary.list()).length === 0);
   await page.reload();
   await page.waitForFunction(() => window.studyLibrary?.available);
-  assert.equal((await page.evaluate(() => window.studyLibrary.list())).length, 0);
+  const remaining = await page.evaluate(() => window.studyLibrary.list());
+  assert.equal(remaining.length, 0, 'Deleted projects after reload: ' + JSON.stringify(remaining));
   assert.deepEqual(errors, []);
   console.log('Browser checks passed: import, persistence, conversation isolation, archive, restore, deletion, reload; 2 mocked requests, 0 real model requests.');
 } finally {

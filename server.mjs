@@ -15,7 +15,7 @@ function openBrowser(url) {
   const opener = spawn('rundll32.exe', ['url.dll,FileProtocolHandler', url], { windowsHide: true, detached: true, stdio: 'ignore' });
   opener.on('error', () => console.log(`请在浏览器中打开：${url}`)); opener.unref();
 }
-const appVersion = '1.4.0';
+const appVersion = '1.4.1';
 const requiredAssets = ['index.html', 'app.js', 'library.js', 'style.css',
   'vendor/dexie/dexie.min.js', 'vendor/katex/katex.min.js', 'vendor/markdown-it.min.js'];
 async function assetsReady() {
