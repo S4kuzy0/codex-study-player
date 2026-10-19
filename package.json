@@ -1,0 +1,18 @@
+{
+  "name": "codex-study-player",
+  "version": "1.4.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Local video study player with per-video conversations and Codex CLI integration",
+  "scripts": {
+    "start": "node server.mjs --open",
+    "test": "node --test tests/server.test.cjs",
+    "test:browser": "node tests/browser-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

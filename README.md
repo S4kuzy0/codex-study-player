@@ -2,7 +2,7 @@
 
 本地课程视频播放器，当前版本 **1.4.0**。支持拖入视频、倍速滑条、快捷快进、全屏，以及通过本机已登录的 Codex CLI 在播放器旁提问。
 
-版本仓库：[S4kuzy0/codex-study-player](https://github.com/S4kuzy0/codex-study-player)，私有，使用 `main` 分支。
+版本仓库：[S4kuzy0/codex-study-player](https://github.com/S4kuzy0/codex-study-player)，使用 `main` 分支。原创代码采用 [MIT](LICENSE)。
 
 每个视频是独立项目，项目内可新建、重命名、搜索和删除多个对话。视频、播放进度与对话存放在当前浏览器；复制或克隆程序目录不会复制这些数据。
 
@@ -10,8 +10,8 @@
 
 已验证环境：Windows、Windows PowerShell 5.1、Node.js 24、Chrome。浏览器需支持 IndexedDB 和所选视频编码。
 
-1. 安装 Node.js，或使用 Codex 桌面应用初始化的本机 Node.js 运行时。
-2. 打开并登录 Codex；提问使用本机 Codex CLI 的登录状态和账户额度。
+1. 安装 Node.js 24 或使用 Codex 桌面应用初始化的兼容 Node.js 运行时。
+2. 安装并登录可用的 Codex CLI，执行 `codex login status` 核对；提问使用该 CLI 的登录状态和账户额度。若 CLI 不在 PATH，用下文环境变量指定其可执行文件。
 3. 在完整项目目录中双击 `启动播放器.cmd`。保留服务窗口。
 4. 浏览器打开固定地址 <http://127.0.0.1:48731/>。拖入视频后等待保存完成。
 
@@ -22,6 +22,12 @@ node server.mjs --open
 ```
 
 `--open` 在 Windows 上自动打开浏览器；也可执行 `node server.mjs` 后手动访问页面。重复启动会复用健康的同版本服务。升级版本前先关闭旧版本的服务窗口。
+
+## 预览
+
+![本地合成示例的播放器界面](docs/images/player-demo.png)
+
+图中视频与问答为测试生成的示例，不是真实课程或模型回答。
 
 ## 使用
 
@@ -83,15 +89,11 @@ node --check library.js
 
 更完整的已验证和未验证范围见 [验证记录](docs/verification.md)。
 
-## 版本维护
+## 贡献与版本维护
 
 仅同步源码、启动文件、必要依赖资源及项目文档。`.gitignore` 排除运行目录、登录和环境配置、日志、备份、视频、压缩包，以及各级目录不同大小写的本地 agent 指令文件。第三方许可证随依赖保留。
 
-以后每轮播放器更新完成后，必须同时更新桌面“codex播放器”入口指向的程序与本私有仓库，无需另外提醒。先保护本机未提交内容，完成修改和必要检查，将最终程序、必要资源与文档同步到桌面版本，维护项目记忆，再提交并推送到本仓库的 `main` 分支。
-
-默认直接采用已授权的管理员原位更新，保留现有安装位置和桌面入口，不再重复询问部署方式。使用 Windows 标准 UAC；系统提示仍可能需要用户点击确认。更新前检查原文件与恢复点，完成后核对实际安装版本、发布文件和远程提交；不绕过系统权限、不擅自修改目录 ACL。单纯文档同步不重启播放器。
-
-交付前核对桌面文件属于本轮最终版本，远程分支包含本轮提交，并报告同步结果。若任一环节失败，保留本地成果并说明尚未同步的部分。本机路径记录在 Git 排除的 `work/deployment-targets.local.json`。该流程由助手实际处理项目时执行，没有安装后台自动同步程序。
+修改后运行 `npm test`；浏览器回归、独立示例和演示截图见 [测试与演示](docs/testing.md)。提交不含真实视频、问答或登录信息。个人已部署副本的维护记录保存在 [项目记忆](docs/project-memory.md)，不作为其他使用者的安装前提。
 
 ## 第三方依赖
 
@@ -101,4 +103,4 @@ node --check library.js
 | [KaTeX](https://github.com/KaTeX/KaTeX) | 0.16.22 | MIT | `vendor/katex/LICENSE` |
 | [markdown-it](https://github.com/markdown-it/markdown-it) | 14.1.0 | MIT | `vendor/markdown-it-LICENSE.txt` |
 
-项目当前按私人用途保管，未新增对项目自身代码的公开授权；第三方代码继续遵循各自许可证。
+原创代码采用 [MIT](LICENSE)，第三方代码、字体继续遵循各自许可证，汇总见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

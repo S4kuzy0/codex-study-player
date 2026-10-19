@@ -61,3 +61,6 @@ chrome-profile/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Repository-owned synthetic regression fixture; never allow arbitrary user videos.
+!/tests/fixtures/synthetic.webm
