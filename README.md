@@ -4,6 +4,8 @@
 
 版本仓库：[S4kuzy0/codex-study-player](https://github.com/S4kuzy0/codex-study-player)，使用 `main` 分支。原创代码采用 [MIT](LICENSE)。
 
+可从 [Releases](https://github.com/S4kuzy0/codex-study-player/releases) 下载完整 ZIP 和 SHA-256 清单，解压后按下方步骤运行；ZIP 包含前端依赖与许可证。
+
 每个视频是独立项目，项目内可新建、重命名、搜索和删除多个对话。视频、播放进度与对话存放在当前浏览器；复制或克隆程序目录不会复制这些数据。
 
 ## 运行
